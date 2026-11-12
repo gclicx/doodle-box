@@ -821,7 +821,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-breakout"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "doodle-core",
  "macroquad",
@@ -829,7 +829,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "doodle-meta",
  "macroquad",
@@ -837,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-flappy"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "doodle-core",
  "macroquad",
@@ -845,7 +845,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-jumper"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "doodle-core",
  "macroquad",
@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-launcher"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "doodle-meta",
  "eframe",
@@ -862,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-meta"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "ctor",
  "serde",
@@ -871,7 +871,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-pong"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "doodle-core",
  "macroquad",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-snake"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "doodle-core",
  "macroquad",
