@@ -18,6 +18,16 @@ ohne Änderung am Launcher.
 Der Launcher zeigt Name, Beschreibung, Version und Programmdateipfad jedes
 Spiels an. Bestwerte werden pro Spiel im Benutzerprofil gespeichert.
 
+## Download & spielen (ohne Rust)
+
+Fertige Windows-Builds gibt es unter
+[Releases](https://github.com/gclicx/doodle-box/releases/latest)
+(Windows 10/11, 64-Bit): ZIP entpacken, `Doodle Box.exe` doppelklicken,
+Spiel anklicken – fertig. Die Exe ist nicht signiert; falls SmartScreen beim
+ersten Start warnen sollte: *Weitere Informationen* → *Trotzdem ausführen*.
+Neue Versionen erscheinen immer dort, sobald `scripts\bundle.ps1` neu gebaut
+und ein Release hochgeladen wurde.
+
 ## Bauen & Starten
 
 ```sh
