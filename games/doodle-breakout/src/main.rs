@@ -7,8 +7,8 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{ACCENT, BLUE, MUTED, FG, GREEN, ORANGE, RED, YELLOW, WHITE, BORDER};
-use doodle_core::{aero_draw, alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
+use doodle_core::palette::{self, ACCENT, BLUE, MUTED, FG, GREEN, ORANGE, RED, YELLOW};
+use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen, ui};
 use macroquad::prelude::*;
 
 const HIGHSCORE_ID: &str = "doodle-breakout";
@@ -90,7 +90,6 @@ async fn run_game() -> u32 {
     let mut score = 0_u32;
     let best = highscore::load(HIGHSCORE_ID);
     let start_time = get_time() as f32;
-    let bg_tex = aero_draw::wallpaper();
 
     // Mauer aufbauen
     let side = 18.0;
@@ -186,7 +185,7 @@ async fn run_game() -> u32 {
         }
 
         // Darstellung
-        aero_draw::background(&bg_tex);
+        clear_background(palette::BG);
         for b in &bricks {
             if b.alive {
                 draw_rectangle(b.x, b.y, b.w, b.h, b.color);
@@ -199,11 +198,11 @@ async fn run_game() -> u32 {
             paddle_y,
             PADDLE_W,
             PADDLE_H,
-            ACCENT,
+            palette::PRIMARY,
         );
-        draw_rectangle_lines(paddle_x - PADDLE_W / 2.0, paddle_y, PADDLE_W, PADDLE_H, 1.0, BORDER);
-        draw_line(paddle_x - PADDLE_W / 2.0 + 2.0, paddle_y + 1.5, paddle_x + PADDLE_W / 2.0 - 2.0, paddle_y + 1.5, 1.5, alpha(WHITE, 0.85));
-        aero_draw::orb(ball.x, ball.y, BALL_R);
+        draw_rectangle_lines(paddle_x - PADDLE_W / 2.0, paddle_y, PADDLE_W, PADDLE_H, 1.0, palette::BORDER);
+        draw_line(paddle_x - PADDLE_W / 2.0 + 2.0, paddle_y + 1.5, paddle_x + PADDLE_W / 2.0 - 2.0, paddle_y + 1.5, 1.5, alpha(WHITE, 0.4));
+        ui::orb(ball.x, ball.y, BALL_R, ACCENT);
 
         draw_text(&format!("Punkte: {score}"), 14.0, 32.0, 20.0, FG);
         let btxt = format!("Best: {}", best.max(score));

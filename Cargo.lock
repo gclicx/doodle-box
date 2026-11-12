@@ -117,10 +117,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
-name = "aero"
-version = "0.3.0"
-
-[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -835,7 +831,6 @@ dependencies = [
 name = "doodle-core"
 version = "0.3.0"
 dependencies = [
- "aero",
  "doodle-meta",
  "macroquad",
 ]
@@ -860,7 +855,6 @@ dependencies = [
 name = "doodle-launcher"
 version = "0.3.0"
 dependencies = [
- "aero",
  "doodle-meta",
  "eframe",
  "serde_json",

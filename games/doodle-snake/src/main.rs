@@ -12,7 +12,7 @@ doodle_meta!(
 
 use doodle_core::highscore;
 use doodle_core::palette::{self, FG, MUTED, GREEN, RED};
-use doodle_core::{aero_draw, alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
+use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen, ui};
 use macroquad::prelude::*;
 
 const CELL: f32 = 24.0;
@@ -111,7 +111,6 @@ async fn run_game() -> u32 {
     let mut acc = 0.0_f32;
     let mut score = 0_u32;
     let best = highscore::load(HIGHSCORE_ID);
-    let bg_tex = aero_draw::wallpaper();
 
     loop {
         let dt = get_frame_time().min(0.05);
@@ -174,7 +173,7 @@ async fn run_game() -> u32 {
         }
 
         // Darstellung
-        aero_draw::background(&bg_tex);
+        clear_background(palette::BG);
         text_centered("Doodle Snake", LEFT + BOARD_W * 0.5, 52.0, 34.0, FG);
         draw_text(&format!("Punkte: {score}"), LEFT, 92.0, 18.0, MUTED);
         text_centered(
@@ -185,15 +184,15 @@ async fn run_game() -> u32 {
             MUTED,
         );
 
-        // Spielfeld als Glas-Panel mit blassen Gitterlinien
-        aero_draw::panel(LEFT, TOP, BOARD_W, BOARD_H);
+        // Spielfeld als Karte mit blassen Gitterlinien
+        ui::card(LEFT, TOP, BOARD_W, BOARD_H);
         for i in 1..COLS {
             let x = LEFT + i as f32 * CELL;
-            draw_line(x, TOP, x, TOP + BOARD_H, 1.0, alpha(FG, 0.10));
+            draw_line(x, TOP, x, TOP + BOARD_H, 1.0, alpha(palette::MUTED, 0.25));
         }
         for j in 1..ROWS {
             let y = TOP + j as f32 * CELL;
-            draw_line(LEFT, y, LEFT + BOARD_W, y, 1.0, alpha(FG, 0.10));
+            draw_line(LEFT, y, LEFT + BOARD_W, y, 1.0, alpha(palette::MUTED, 0.25));
         }
 
         // Frucht
@@ -215,7 +214,7 @@ async fn run_game() -> u32 {
                 hx + dir.0 as f32 * 5.0 + perp.0 * 6.0 * side,
                 hy + dir.1 as f32 * 5.0 + perp.1 * 6.0 * side,
                 3.0,
-                WHITE,
+                palette::BG,
             );
         }
 
