@@ -117,6 +117,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "aero"
+version = "0.3.0"
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -821,7 +825,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-breakout"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "doodle-core",
  "macroquad",
@@ -829,15 +833,16 @@ dependencies = [
 
 [[package]]
 name = "doodle-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "aero",
  "doodle-meta",
  "macroquad",
 ]
 
 [[package]]
 name = "doodle-flappy"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "doodle-core",
  "macroquad",
@@ -845,7 +850,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-jumper"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "doodle-core",
  "macroquad",
@@ -853,8 +858,9 @@ dependencies = [
 
 [[package]]
 name = "doodle-launcher"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "aero",
  "doodle-meta",
  "eframe",
  "serde_json",
@@ -862,7 +868,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-meta"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ctor",
  "serde",
@@ -871,7 +877,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-pong"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "doodle-core",
  "macroquad",
@@ -879,7 +885,7 @@ dependencies = [
 
 [[package]]
 name = "doodle-snake"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "doodle-core",
  "macroquad",

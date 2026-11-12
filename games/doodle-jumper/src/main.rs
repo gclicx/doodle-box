@@ -12,8 +12,8 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{self, BG, BLUE, MUTED, FG, GREEN, ORANGE};
-use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
+use doodle_core::palette::{self, BLUE, MUTED, FG, GREEN, ORANGE};
+use doodle_core::{aero_draw, alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
 const HIGHSCORE_ID: &str = "doodle-jumper";
@@ -129,6 +129,7 @@ async fn run_game() -> u32 {
     let mut cam_y = p.y - h * 0.55; // Fensterkante oben in Weltkoordinaten
     let mut score = 0_u32;
     let best = highscore::load(HIGHSCORE_ID);
+    let bg_tex = aero_draw::wallpaper();
 
     loop {
         let dt = get_frame_time().min(0.05);
@@ -253,12 +254,12 @@ async fn run_game() -> u32 {
         }
 
         // Darstellung
-        clear_background(BG);
-        // dezent horizontale Linien als Höhenreferenz
+        aero_draw::background(&bg_tex);
+        // dezente Linien als Höhenreferenz (Navy, sehr blass)
         let grid_world_start = (cam_y / 44.0).floor() * 44.0;
         let mut gy = grid_world_start;
         while gy < cam_y + h + 44.0 {
-            draw_line(0.0, gy - cam_y, w, gy - cam_y, 1.0, alpha(FG, 0.06));
+            draw_line(0.0, gy - cam_y, w, gy - cam_y, 1.0, alpha(FG, 0.08));
             gy += 44.0;
         }
 
@@ -275,13 +276,14 @@ async fn run_game() -> u32 {
             }
         }
 
-        // Spiel-Figur: Kreis mit Augen
+        // Spiel-Figur: schattierter Kreis mit Augen
         let sy = p.y - cam_y;
+        draw_circle(p.x + 1.0, sy + 3.0, PLAYER_R, alpha(palette::MUTED, 0.25));
         draw_circle(p.x, sy, PLAYER_R, palette::YELLOW);
-        draw_circle(p.x, sy, PLAYER_R - 6.0, alpha(BG, 0.35));
+        draw_circle(p.x, sy, PLAYER_R - 6.0, alpha(WHITE, 0.55));
         let look = if p.vx.abs() > 30.0 { (p.vx / MOVE_SPEED) * 3.0 } else { 0.0 };
         for side in [-1.0_f32, 1.0] {
-            draw_circle(p.x + 5.0 * side, sy - 4.0, 3.5, BG);
+            draw_circle(p.x + 5.0 * side, sy - 4.0, 3.5, WHITE);
             draw_circle(p.x + 5.0 * side + look, sy - 4.0, 1.6, FG);
         }
 

@@ -6,4 +6,5 @@ description = "Gemeinsamer Kritzel-Zeichenstil und Bildschirme für Doodle-Spiel
 
 [dependencies]
 macroquad = { workspace = true }
+aero = { workspace = true }
 doodle-meta = { workspace = true }

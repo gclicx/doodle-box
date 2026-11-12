@@ -7,8 +7,8 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{BG, BORDER, MUTED, FG, GREEN, PANEL, YELLOW};
-use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
+use doodle_core::palette::{BORDER, MUTED, FG, GREEN, PANEL, YELLOW, WHITE};
+use doodle_core::{aero_draw, alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
 const HIGHSCORE_ID: &str = "doodle-flappy";
@@ -87,6 +87,7 @@ async fn run_game() -> u32 {
     let mut pipes: Vec<Pipe> = Vec::new();
     let mut score = 0_u32;
     let best = highscore::load(HIGHSCORE_ID);
+    let bg_tex = aero_draw::wallpaper();
 
     loop {
         let dt = get_frame_time().min(0.033);
@@ -148,7 +149,7 @@ async fn run_game() -> u32 {
         }
 
         // Darstellung
-        clear_background(BG);
+        aero_draw::background(&bg_tex);
         for p in &pipes {
             let top_h = p.gap_y - PIPE_GAP * 0.5;
             let bot_y = p.gap_y + PIPE_GAP * 0.5;
@@ -163,9 +164,12 @@ async fn run_game() -> u32 {
 
         // Vogel
         draw_circle(BIRD_X, bird_y, BIRD_R, YELLOW);
-        draw_circle(BIRD_X + 5.0, bird_y - 4.0, 4.5, FG);
-        draw_circle(BIRD_X + 6.5, bird_y - 4.0, 2.0, BG);
-        draw_rectangle(BIRD_X - 12.0, bird_y + 1.0, 10.0, 7.0, alpha(FG, 0.85));
+        draw_circle(BIRD_X, bird_y + 2.0, BIRD_R, alpha(MUTED, 0.12));
+        draw_circle(BIRD_X - 0.5, bird_y - 0.5, BIRD_R, YELLOW);
+        draw_circle(BIRD_X + 5.0, bird_y - 4.0, 4.5, WHITE);
+        draw_circle(BIRD_X + 6.5, bird_y - 4.0, 2.0, FG);
+        draw_circle(BIRD_X - 3.0, bird_y - 5.0, 3.0, alpha(WHITE, 0.85));
+        draw_rectangle(BIRD_X - 12.0, bird_y + 1.0, 10.0, 7.0, alpha(WHITE, 0.65));
 
         // Punkte
         text_centered(&format!("{score}"), w * 0.5, 64.0, 40.0, FG);

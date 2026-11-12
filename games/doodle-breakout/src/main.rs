@@ -7,8 +7,8 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{ACCENT, BG, BLUE, MUTED, FG, GREEN, ORANGE, RED, YELLOW};
-use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
+use doodle_core::palette::{ACCENT, BLUE, MUTED, FG, GREEN, ORANGE, RED, YELLOW, WHITE, BORDER};
+use doodle_core::{aero_draw, alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
 const HIGHSCORE_ID: &str = "doodle-breakout";
@@ -90,6 +90,7 @@ async fn run_game() -> u32 {
     let mut score = 0_u32;
     let best = highscore::load(HIGHSCORE_ID);
     let start_time = get_time() as f32;
+    let bg_tex = aero_draw::wallpaper();
 
     // Mauer aufbauen
     let side = 18.0;
@@ -185,11 +186,12 @@ async fn run_game() -> u32 {
         }
 
         // Darstellung
-        clear_background(BG);
+        aero_draw::background(&bg_tex);
         for b in &bricks {
             if b.alive {
                 draw_rectangle(b.x, b.y, b.w, b.h, b.color);
-                draw_rectangle(b.x, b.y + b.h - 4.0, b.w, 4.0, alpha(BG, 0.35));
+                draw_rectangle(b.x, b.y + b.h - 4.0, b.w, 4.0, alpha(WHITE, 0.35));
+                draw_line(b.x + 1.0, b.y + 1.0, b.x + b.w - 1.0, b.y + 1.0, 1.5, alpha(WHITE, 0.75));
             }
         }
         draw_rectangle(
@@ -197,10 +199,11 @@ async fn run_game() -> u32 {
             paddle_y,
             PADDLE_W,
             PADDLE_H,
-            FG,
+            ACCENT,
         );
-        draw_rectangle(paddle_x - PADDLE_W / 2.0, paddle_y, PADDLE_W, 4.0, ACCENT);
-        draw_circle(ball.x, ball.y, BALL_R, YELLOW);
+        draw_rectangle_lines(paddle_x - PADDLE_W / 2.0, paddle_y, PADDLE_W, PADDLE_H, 1.0, BORDER);
+        draw_line(paddle_x - PADDLE_W / 2.0 + 2.0, paddle_y + 1.5, paddle_x + PADDLE_W / 2.0 - 2.0, paddle_y + 1.5, 1.5, alpha(WHITE, 0.85));
+        aero_draw::orb(ball.x, ball.y, BALL_R);
 
         draw_text(&format!("Punkte: {score}"), 14.0, 32.0, 20.0, FG);
         let btxt = format!("Best: {}", best.max(score));

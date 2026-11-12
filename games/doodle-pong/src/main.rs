@@ -7,8 +7,8 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{self, ACCENT, BG, MUTED, FG, PANEL};
-use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
+use doodle_core::palette::{self, ACCENT, BORDER, MUTED, FG};
+use doodle_core::{aero_draw, alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
 const HIGHSCORE_ID: &str = "doodle-pong";
@@ -92,6 +92,7 @@ async fn run_game() -> u32 {
     let mut end_t = 0.0_f32;
     let mut player_won = false;
     let best = highscore::load(HIGHSCORE_ID);
+    let bg_tex = aero_draw::wallpaper();
 
     loop {
         let dt = get_frame_time().min(0.033);
@@ -197,7 +198,7 @@ async fn run_game() -> u32 {
         }
 
         // Darstellung
-        clear_background(BG);
+        aero_draw::background(&bg_tex);
         for y in (top as i32..bottom as i32).step_by(26) {
             draw_line(
                 w / 2.0,
@@ -205,14 +206,18 @@ async fn run_game() -> u32 {
                 w / 2.0,
                 (y + 12) as f32,
                 2.0,
-                alpha(FG, 0.22),
+                alpha(WHITE, 0.55),
             );
         }
-        draw_rectangle(MARGIN, player_y - half_h, PADDLE_W, PADDLE_H, FG);
-        draw_rectangle(w - MARGIN - PADDLE_W, cpu_y - half_h, PADDLE_W, PADDLE_H, FG);
-        draw_circle(ball.x, ball.y, BALL_R, ACCENT);
-        draw_rectangle(0.0, 0.0, w, top, PANEL);
-        draw_rectangle(0.0, bottom, w, h - bottom, PANEL);
+        draw_rectangle(MARGIN, player_y - half_h, PADDLE_W, PADDLE_H, ACCENT);
+        draw_line(MARGIN, player_y - half_h + 1.0, MARGIN + PADDLE_W, player_y - half_h + 1.0, 1.5, alpha(WHITE, 0.85));
+        draw_rectangle(w - MARGIN - PADDLE_W, cpu_y - half_h, PADDLE_W, PADDLE_H, ACCENT);
+        draw_line(w - MARGIN - PADDLE_W, cpu_y - half_h + 1.0, w - MARGIN, cpu_y - half_h + 1.0, 1.5, alpha(WHITE, 0.85));
+        aero_draw::orb(ball.x, ball.y, BALL_R);
+        draw_rectangle(0.0, 0.0, w, top, alpha(WHITE, 0.25));
+        draw_rectangle(0.0, bottom, w, h - bottom, alpha(WHITE, 0.25));
+        draw_line(0.0, top, w, top, 1.5, BORDER);
+        draw_line(0.0, bottom, w, bottom, 1.5, BORDER);
         draw_text(&format!("Du: {p_score}"), 16.0, 30.0, 20.0, FG);
         draw_text(&format!("Best: {best}"), 16.0, 50.0, 14.0, MUTED);
         let ctxt = format!("CPU: {c_score}");
@@ -225,8 +230,9 @@ async fn run_game() -> u32 {
             } else {
                 format!("CPU gewinnt. {p_score} : {c_score}")
             };
+            aero_draw::panel(w * 0.5 - 210.0, h * 0.5 - 44.0, 420.0, 88.0);
             let pulse = (t * 6.0).sin() * 0.2 + 0.8;
-            text_centered(&msg, w * 0.5, h * 0.5, 32.0, alpha(palette::ACCENT, pulse));
+            text_centered(&msg, w * 0.5, h * 0.5 + 6.0, 30.0, alpha(palette::ACCENT, pulse));
         }
 
         next_frame().await;

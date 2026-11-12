@@ -1,0 +1,7 @@
+[package]
+name = "aero"
+version.workspace = true
+edition.workspace = true
+description = "Frutiger-Aero-Kit: prozeduraler Wallpaper + gemeinsame Farben (framework-neutral)"
+
+[dependencies]

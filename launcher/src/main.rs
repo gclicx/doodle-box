@@ -5,6 +5,9 @@
 //! Argument `--doodle-meta` kurz nach Name/Beschreibung/Version und listet
 //! sie auf. Ein Klick auf die Karte startet das Spiel als eigener Prozess.
 //!
+//! Design: Frutiger Aero (Kit "tauri2-frutiger-aero-kit") – transparentes
+//! Glas über prozeduralem Wallpaper, 2-stufige Gel-Knöpfe, Navy-Text.
+//!
 //! Neues Spiel hinzufügen:
 //! 1. Neuen Crate im Ordner `games/` anlegen (Crate-Name beginnt mit `doodle-`).
 //! 2. `doodle_meta!("Name", "Beschreibung", env!("CARGO_PKG_VERSION"));` in `main.rs`.
@@ -12,31 +15,25 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use aero;
 use doodle_meta::{GameMeta, META_ARG};
 use eframe::egui;
 use egui::{
     pos2, vec2, Align, Align2, Color32, CornerRadius, CursorIcon, FontId, Key, Layout, Rect,
-    RichText, ScrollArea, Sense, Stroke, TextStyle,
+    RichText, ScrollArea, Sense, Stroke, TextStyle, TextureHandle,
 };
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-// ---- Farben (dunkles, modernes Slate-Thema passend zu den Spielen) ----
-const BG: Color32 = Color32::from_rgb(0x1a, 0x1b, 0x22);
-const CARD: Color32 = Color32::from_rgb(0x24, 0x26, 0x33);
-const CARD_HOVER: Color32 = Color32::from_rgb(0x2c, 0x2f, 0x3e);
-const CHIP: Color32 = Color32::from_rgb(0x2c, 0x2f, 0x3e);
-const BORDER: Color32 = Color32::from_rgb(0x32, 0x36, 0x47);
-const TEXT: Color32 = Color32::from_rgb(0xe9, 0xe6, 0xdf);
-const MUTED: Color32 = Color32::from_rgb(0x90, 0x95, 0xa5);
-const ACCENT: Color32 = Color32::from_rgb(0x63, 0xe6, 0xbe);
-/// Weicher Akzentton für Hover-Kanten (Alpha).
-fn accent_soft() -> Color32 {
-    Color32::from_rgba_unmultiplied(0x63, 0xe6, 0xbe, 110)
-}
-const ON_ACCENT: Color32 = Color32::from_rgb(0x0b, 0x14, 0x10);
+// ---- Farben aus dem Aero-Kit ----
+const NAVY: Color32 = Color32::from_rgb(0x09, 0x21, 0x3d);
+const MUTED: Color32 = Color32::from_rgb(0x2c, 0x4d, 0x6e);
+const PRIMARY: Color32 = Color32::from_rgb(0x00, 0x78, 0xd7);
+const BTN_BORDER: Color32 = Color32::from_rgb(0x00, 0x58, 0xad);
+const DESTRUCTIVE: Color32 = Color32::from_rgb(0xd9, 0x26, 0x26);
+const WHITE: Color32 = Color32::WHITE;
 
 /// Ein gefundenes Spiel.
 struct GameEntry {
@@ -57,6 +54,7 @@ struct LauncherApp {
     games: Vec<GameEntry>,
     running: Vec<RunningGame>,
     status: String,
+    bg: Option<TextureHandle>,
 }
 
 fn main() -> eframe::Result {
@@ -75,9 +73,17 @@ fn main() -> eframe::Result {
                 games: scan_games(),
                 running: Vec::new(),
                 status: String::new(),
+                bg: Some(make_background(&cc.egui_ctx)),
             }))
         }),
     )
+}
+
+/// Prozeduralen Aero-Wallpaper als egui-Textur.
+fn make_background(ctx: &egui::Context) -> TextureHandle {
+    let pixels = aero::aero_pixels(768, 512);
+    let image = egui::ColorImage::from_rgba_unmultiplied([768, 512], &pixels);
+    ctx.load_texture("aero_hintergrund", image, egui::TextureOptions::LINEAR)
 }
 
 // ---------------------------------------------------------------- scanning
@@ -293,171 +299,257 @@ impl eframe::App for LauncherApp {
             self.rescan();
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // ---------------- Kopfzeile ----------------
-            ui.horizontal(|ui| {
-                // Logo-Badge
-                let (badge, _) = ui.allocate_exact_size(vec2(46.0, 46.0), Sense::hover());
-                let p = ui.painter();
-                p.rect(
-                    badge,
-                    14.0,
-                    ACCENT,
-                    Stroke::NONE,
-                    egui::StrokeKind::Inside,
-                );
-                p.text(
-                    badge.center(),
-                    Align2::CENTER_CENTER,
-                    "D",
-                    FontId::proportional(24.0),
-                    ON_ACCENT,
-                );
-
-                ui.add_space(4.0);
-                ui.vertical(|ui| {
-                    ui.label(RichText::new("Doodle Box").size(23.0).strong());
-                    ui.label(
-                        RichText::new("Kleine Rust-Spiele · ein Klick zum Starten")
-                            .weak()
-                            .size(13.0),
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE.fill(Color32::TRANSPARENT))
+            .show(ctx, |ui| {
+                // Wallpaper über die ganze Fläche
+                if let Some(bg) = self.bg.as_ref() {
+                    ui.painter().image(
+                        bg.id(),
+                        ui.max_rect(),
+                        Rect::from_min_size(egui::Pos2::ZERO, vec2(1.0, 1.0)),
+                        Color32::WHITE,
                     );
-                });
+                }
 
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    // Zähler-Pill
-                    let count = format!(
-                        "{} {}",
-                        self.games.len(),
-                        if self.games.len() == 1 { "Spiel" } else { "Spiele" }
-                    );
-                    // Breite erst per temporärem Painter messen,
-                    // damit der Borrow vor dem allozieren endet.
-                    let (gal, pill_w) = {
-                        let p0 = ui.painter();
-                        let g = p0.layout_no_wrap(count, FontId::proportional(13.0), MUTED);
-                        let w = g.size().x + 26.0;
-                        (g, w)
-                    };
-                    let pill = ui
-                        .allocate_exact_size(vec2(pill_w, 30.0), Sense::hover())
-                        .1
-                        .rect;
-                    let p = ui.painter();
-                    p.rect(
-                        pill,
-                        15.0,
-                        CHIP,
-                        Stroke::new(1.0_f32, BORDER),
-                        egui::StrokeKind::Inside,
-                    );
-                    p.galley(
-                        pos2(pill.left() + 13.0, pill.center().y - gal.size().y / 2.0),
-                        gal,
-                        MUTED,
-                    );
-
-                    ui.add_space(6.0);
-                    if ui
-                        .add(
-                            egui::Button::new(
-                                RichText::new("Aktualisieren").weak().size(14.0),
-                            )
-                            .frame(false)
-                            .min_size(vec2(0.0, 30.0)),
-                        )
-                        .clicked()
-                    {
-                        self.rescan();
-                    }
-                });
-            });
-
-            ui.add_space(14.0);
-
-            // ---------------- Karteileiste ----------------
-            let mut launch_index: Option<usize> = None;
-
-            if self.games.is_empty() {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(ui.available_height() * 0.16);
-                    ui.label(RichText::new("Noch keine Spiele gefunden").size(21.0));
-                    ui.add_space(6.0);
-                    ui.label(
-                        RichText::new(
-                            "Baue die Spiele mit  cargo build  oder lege ein doodle-* Programm\n\
-                             neben die Launcher-Datei bzw. in einen games/-Ordner.",
-                        )
-                        .weak()
-                        .size(14.0),
-                    );
-                });
-            } else {
-                ScrollArea::vertical()
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| {
-                        for (i, entry) in self.games.iter().enumerate() {
-                            draw_game_card(ui, entry, i, &mut launch_index);
-                            ui.add_space(12.0);
-                        }
-                    });
-            }
-
-            if let Some(i) = launch_index {
-                self.launch(i);
-            }
-
-            // ---------------- Fußzeile ----------------
-            ui.with_layout(Layout::bottom_up(Align::LEFT), |ui| {
+                // ---------------- Kopfzeile ----------------
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new(&self.status).weak().size(13.0));
+                    // Glaskugel-Logo
+                    let (badge, _) = ui.allocate_exact_size(vec2(46.0, 46.0), Sense::hover());
+                    {
+                        let p = ui.painter();
+                        p.circle_filled(
+                            badge.center() + vec2(0.0, 2.0),
+                            21.0,
+                            Color32::from_rgba_unmultiplied(0x00, 0x37, 0x6e, 60),
+                        );
+                        p.circle_filled(badge.center(), 21.0, PRIMARY);
+                        p.circle_filled(
+                            badge.center() - vec2(5.0, 7.0),
+                            11.0,
+                            Color32::from_white_alpha(90),
+                        );
+                        p.circle_filled(
+                            badge.center() - vec2(6.5, 8.5),
+                            5.0,
+                            Color32::from_white_alpha(210),
+                        );
+                        p.circle_stroke(
+                            badge.center(),
+                            21.0,
+                            Stroke::new(1.5_f32, Color32::from_white_alpha(235)),
+                        );
+                        p.text(
+                            badge.center() + vec2(0.0, 1.0),
+                            Align2::CENTER_CENTER,
+                            "D",
+                            FontId::proportional(19.0),
+                            WHITE,
+                        );
+                    }
+
+                    ui.add_space(4.0);
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new("Doodle Box").size(23.0).strong().color(NAVY));
+                        ui.label(
+                            RichText::new("Kleine Rust-Spiele · ein Klick zum Starten")
+                                .weak()
+                                .size(13.0)
+                                .color(MUTED),
+                        );
+                    });
+
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        // Zähler-Pill (Aero: weiße Glas-Pille mit blauer Kante)
+                        let count = format!(
+                            "{} {}",
+                            self.games.len(),
+                            if self.games.len() == 1 { "Spiel" } else { "Spiele" }
+                        );
+                        let pill_w = {
+                            let p0 = ui.painter();
+                            let gal =
+                                p0.layout_no_wrap(count.clone(), FontId::proportional(13.0), NAVY);
+                            gal.size().x + 26.0
+                        };
+                        let (pill, _) = ui
+                            .allocate_exact_size(vec2(pill_w, 30.0), Sense::hover());
+                        {
+                            let p = ui.painter();
+                            p.rect(pill, 15.0, Color32::from_white_alpha(200), Stroke::NONE, egui::StrokeKind::Inside);
+                            p.rect_stroke(pill, 15.0, Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0x6e, 0xb4, 0xeb, 210)), egui::StrokeKind::Inside);
+                            p.line_segment(
+                                [pos2(pill.left() + 4.0, pill.top() + 1.5), pos2(pill.right() - 4.0, pill.top() + 1.5)],
+                                Stroke::new(1.2_f32, Color32::from_white_alpha(235)),
+                            );
+                            let gal = p.layout_no_wrap(count.clone(), FontId::proportional(13.0), NAVY);
+                            p.galley(pos2(pill.center().x - gal.size().x / 2.0, pill.center().y - gal.size().y / 2.0), gal, NAVY);
+                        }
+
+                        ui.add_space(6.0);
                         if ui
                             .add(
                                 egui::Button::new(
-                                    RichText::new("Ordner öffnen").weak().size(13.5),
+                                    RichText::new("Aktualisieren").color(NAVY).size(13.5),
                                 )
-                                .frame(false),
+                                .frame(false)
+                                .min_size(vec2(0.0, 30.0)),
                             )
                             .clicked()
                         {
-                            self.open_games_folder();
+                            self.rescan();
                         }
                     });
                 });
-                ui.add_space(8.0);
-                let (line, _) = ui
-                    .allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
-                ui.painter().rect(
-                    line,
-                    0.0,
-                    BORDER,
-                    Stroke::NONE,
-                    egui::StrokeKind::Outside,
-                );
+
+                ui.add_space(14.0);
+
+                // ---------------- Karteileiste ----------------
+                let mut launch_index: Option<usize> = None;
+
+                if self.games.is_empty() {
+                    let (rect, _) =
+                        ui.allocate_exact_size(vec2(ui.available_width(), 150.0), Sense::hover());
+                    {
+                        let p = ui.painter();
+                        p.rect(rect, 14.0, Color32::from_white_alpha(120), Stroke::NONE, egui::StrokeKind::Inside);
+                        p.rect(
+                            Rect::from_min_size(rect.left_top(), vec2(rect.width(), rect.height() * 0.5)),
+                            CornerRadius { nw: 14, ne: 14, sw: 0, se: 0 },
+                            Color32::from_white_alpha(50),
+                            Stroke::NONE,
+                            egui::StrokeKind::Inside,
+                        );
+                        p.rect_stroke(rect, 14, Stroke::new(1.2_f32, Color32::from_white_alpha(206)), egui::StrokeKind::Inside);
+                        p.line_segment(
+                            [pos2(rect.left() + 4.0, rect.top() + 1.5), pos2(rect.right() - 4.0, rect.top() + 1.5)],
+                            Stroke::new(1.2_f32, Color32::from_white_alpha(235)),
+                        );
+                        p.text(
+                            pos2(rect.center().x, rect.top() + 48.0),
+                            Align2::CENTER_CENTER,
+                            "Noch keine Spiele gefunden",
+                            FontId::proportional(20.0),
+                            NAVY,
+                        );
+                        p.text(
+                            pos2(rect.center().x, rect.top() + 80.0),
+                            Align2::CENTER_CENTER,
+                            "Baue die Spiele mit  cargo build  oder lege ein doodle-* Programm",
+                            FontId::proportional(14.0),
+                            MUTED,
+                        );
+                        p.text(
+                            pos2(rect.center().x, rect.top() + 102.0),
+                            Align2::CENTER_CENTER,
+                            "neben die Launcher-Datei bzw. in einen games/-Ordner.",
+                            FontId::proportional(14.0),
+                            MUTED,
+                        );
+                    }
+                } else {
+                    ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            for (i, entry) in self.games.iter().enumerate() {
+                                draw_game_card(ui, entry, i, &mut launch_index);
+                                ui.add_space(12.0);
+                            }
+                        });
+                }
+
+                if let Some(i) = launch_index {
+                    self.launch(i);
+                }
+
+                // ---------------- Fußzeile ----------------
+                ui.with_layout(Layout::bottom_up(Align::LEFT), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(&self.status).weak().size(13.0).color(NAVY));
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            if ui
+                                .add(
+                                    egui::Button::new(
+                                        RichText::new("Ordner öffnen").color(NAVY).size(13.5),
+                                    )
+                                    .frame(false),
+                                )
+                                .clicked()
+                            {
+                                self.open_games_folder();
+                            }
+                        });
+                    });
+                    ui.add_space(8.0);
+                    let (line, _) = ui
+                        .allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
+                    ui.painter().rect(
+                        line,
+                        0.0,
+                        Color32::from_white_alpha(150),
+                        Stroke::NONE,
+                        egui::StrokeKind::Outside,
+                    );
+                });
             });
-        });
     }
 }
 
-/// Eine modern gestylte Karte: komplett klickbar, Hover-Effekt,
-/// Versions-Chip, Pfad als Tooltip, Spiel-Button rechtsbündig.
+/// Aero-Glas-Karte: komplett klickbar, Hover-Glanz, Versions-Chip,
+/// Pfad als Tooltip, Gel-Knopf rechtsbündig.
 fn draw_game_card(ui: &mut egui::Ui, entry: &GameEntry, index: usize, launch: &mut Option<usize>) {
     let (card, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 96.0), Sense::click());
     let hovered = resp.hovered();
+    let resp = resp.on_hover_cursor(CursorIcon::PointingHand);
 
     let p = ui.painter();
+    // Schatten
+    p.rect(
+        card.translate(vec2(0.0, 5.0)),
+        14.0,
+        Color32::from_rgba_unmultiplied(0x00, 0x37, 0x6e, 30),
+        Stroke::NONE,
+        egui::StrokeKind::Outside,
+    );
+    // Glas
     p.rect(
         card,
         14.0,
-        if hovered { CARD_HOVER } else { CARD },
-        Stroke::new(1.2_f32, if hovered { accent_soft() } else { BORDER }),
+        Color32::from_white_alpha(if hovered { 150 } else { 112 }),
+        Stroke::NONE,
         egui::StrokeKind::Inside,
     );
+    p.rect(
+        Rect::from_min_size(card.left_top(), vec2(card.width(), card.height() * 0.5)),
+        CornerRadius { nw: 14, ne: 14, sw: 0, se: 0 },
+        Color32::from_white_alpha(58),
+        Stroke::NONE,
+        egui::StrokeKind::Inside,
+    );
+    p.rect(
+        Rect::from_min_size(
+            pos2(card.left(), card.top() + card.height() * 0.5),
+            vec2(card.width(), card.height() * 0.5),
+        ),
+        CornerRadius { nw: 0, ne: 0, sw: 14, se: 14 },
+        Color32::from_rgba_unmultiplied(0xd7, 0xf0, 0xff, 64),
+        Stroke::NONE,
+        egui::StrokeKind::Inside,
+    );
+    // Glaskante + Lichtsaum
+    p.rect(
+        card,
+        14.0,
+        Color32::TRANSPARENT,
+        Stroke::new(1_f32, if hovered { Color32::from_rgba_unmultiplied(0x00, 0x78, 0xd7, 220) } else { Color32::from_white_alpha(215) }),
+        egui::StrokeKind::Inside,
+    );
+    p.line_segment(
+        [pos2(card.left() + 4.0, card.top() + 1.5), pos2(card.right() - 4.0, card.top() + 1.5)],
+        Stroke::new(1.2_f32, Color32::from_white_alpha(240)),
+    );
 
-    let resp = resp
-        .on_hover_cursor(CursorIcon::PointingHand)
-        .on_hover_text(format!("Datei: {}", entry.path.display()));
+    let resp = resp.on_hover_text(format!("Datei: {}", entry.path.display()));
 
     // Name
     p.text(
@@ -465,24 +557,25 @@ fn draw_game_card(ui: &mut egui::Ui, entry: &GameEntry, index: usize, launch: &m
         Align2::LEFT_TOP,
         &entry.name,
         FontId::proportional(19.0),
-        TEXT,
+        NAVY,
     );
 
     // Versions-Chip
     let ver = format!("v{}", entry.version);
-    let vgal = p.layout_no_wrap(ver, FontId::proportional(11.0), MUTED);
+    let vgal = p.layout_no_wrap(ver, FontId::proportional(11.0), NAVY);
     let chip = Rect::from_min_size(
         pos2(card.left() + 20.0, card.top() + 48.0),
         vec2(vgal.size().x + 18.0, 22.0),
     );
-    p.rect(chip, 7.0, CHIP, Stroke::NONE, egui::StrokeKind::Inside);
+    p.rect(chip, 7.0, Color32::from_white_alpha(190), Stroke::NONE, egui::StrokeKind::Inside);
+    p.rect_stroke(chip, 7.0, Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0x6e, 0xb4, 0xeb, 210)), egui::StrokeKind::Inside);
     p.galley(
         pos2(chip.left() + 9.0, chip.center().y - vgal.size().y / 2.0),
         vgal,
-        MUTED,
+        NAVY,
     );
 
-    // Beschreibung (gekürzt, passt in Zeile neben Button)
+    // Beschreibung (gekürzt), rot wenn kein Meta-Handshake
     let max_chars = ((card.width() - 340.0) / 7.4).max(24.0) as usize;
     let desc = clamp_chars(&entry.description, max_chars);
     p.text(
@@ -490,18 +583,22 @@ fn draw_game_card(ui: &mut egui::Ui, entry: &GameEntry, index: usize, launch: &m
         Align2::LEFT_TOP,
         desc,
         FontId::proportional(14.0),
-        MUTED,
+        if entry.has_meta { MUTED } else { DESTRUCTIVE },
     );
 
-    // Spiel-Button rechtsbündig, vertikal zentriert
+    // Knopf rechtsbündig, vertikal zentriert
     let bw = 122.0_f32;
     let bh = 46.0_f32;
-    let btn_rect = egui::Rect::from_min_size(
+    let btn_rect = Rect::from_min_size(
         pos2(card.right() - 20.0 - bw, card.center().y - bh / 2.0),
         vec2(bw, bh),
     );
-    let button = play_button(entry);
-    if ui.put(btn_rect, button).clicked() {
+    let resp_btn = if entry.has_meta {
+        gel_button(ui, btn_rect, "Spielen", true)
+    } else {
+        glass_button(ui, btn_rect, "Starten")
+    };
+    if resp_btn.clicked() {
         *launch = Some(index);
     }
     // Ganze Karte klickbar
@@ -510,17 +607,91 @@ fn draw_game_card(ui: &mut egui::Ui, entry: &GameEntry, index: usize, launch: &m
     }
 }
 
-fn play_button(entry: &GameEntry) -> egui::Button<'static> {
-    if entry.has_meta {
-        egui::Button::new(RichText::new("Spielen").color(ON_ACCENT).size(16.0))
-            .fill(ACCENT)
-            .min_size(vec2(122.0, 46.0))
+/// Frutiger-Aero-Gel-Knopf (2-stufiger Glanz, Navy-Schatten der Schrift).
+fn gel_button(ui: &mut egui::Ui, rect: Rect, label: &str, green: bool) -> egui::Response {
+    let (top, bottom, border) = if green {
+        (
+            Color32::from_rgb(0x63, 0xcd, 0x20),
+            Color32::from_rgb(0x3e, 0xa3, 0x00),
+            Color32::from_rgb(0x2d, 0x7a, 0x00),
+        )
     } else {
-        egui::Button::new(RichText::new("Starten").color(MUTED).size(15.0))
-            .fill(CARD)
-            .stroke(Stroke::new(1.0_f32, BORDER))
-            .min_size(vec2(122.0, 46.0))
+        (
+            Color32::from_rgb(0x45, 0xa9, 0xf7),
+            Color32::from_rgb(0x06, 0x7b, 0xe2),
+            BTN_BORDER,
+        )
+    };
+    let resp = ui.put(
+        rect,
+        egui::Button::new(RichText::new(label).color(WHITE).size(16.0))
+            .fill(bottom)
+            .min_size(rect.size()),
+    );
+
+    let p = ui.painter();
+    let hover = resp.hovered();
+    // Glanz-Oberzone
+    p.rect(
+        Rect::from_min_size(rect.left_top(), vec2(rect.width(), rect.height() * 0.49)),
+        CornerRadius { nw: 10, ne: 10, sw: 0, se: 0 },
+        top,
+        Stroke::NONE,
+        egui::StrokeKind::Inside,
+    );
+    if hover {
+        p.rect(
+            Rect::from_min_size(rect.left_top(), vec2(rect.width(), rect.height() * 0.49)),
+            CornerRadius { nw: 10, ne: 10, sw: 0, se: 0 },
+            Color32::from_white_alpha(70),
+            Stroke::NONE,
+            egui::StrokeKind::Inside,
+        );
     }
+    // Naht + Innenlicht
+    p.line_segment(
+        [pos2(rect.left() + 2.0, rect.top() + rect.height() * 0.49), pos2(rect.right() - 2.0, rect.top() + rect.height() * 0.49)],
+        Stroke::new(1.3_f32, Color32::from_white_alpha(205)),
+    );
+    p.line_segment(
+        [pos2(rect.left() + 3.0, rect.top() + 1.2), pos2(rect.right() - 3.0, rect.top() + 1.2)],
+        Stroke::new(1.3_f32, Color32::from_white_alpha(230)),
+    );
+    // Rahmen
+    p.rect(
+        rect,
+        10,
+        Color32::TRANSPARENT,
+        Stroke::new(1.2_f32, border),
+        egui::StrokeKind::Inside,
+    );
+    resp
+}
+
+/// Glas-Knopf für Spiele ohne Metadaten-Handshake.
+fn glass_button(ui: &mut egui::Ui, rect: Rect, label: &str) -> egui::Response {
+    let resp = ui.put(
+        rect,
+        egui::Button::new(RichText::new(label).color(MUTED).size(15.0))
+            .fill(Color32::from_white_alpha(160))
+            .min_size(rect.size()),
+    );
+    let p = ui.painter();
+    p.rect(
+        Rect::from_min_size(rect.left_top(), vec2(rect.width(), rect.height() * 0.5)),
+        CornerRadius { nw: 10, ne: 10, sw: 0, se: 0 },
+        Color32::from_white_alpha(60),
+        Stroke::NONE,
+        egui::StrokeKind::Inside,
+    );
+    p.rect(
+        rect,
+        10,
+        Color32::TRANSPARENT,
+        Stroke::new(1.0_f32, Color32::from_white_alpha(215)),
+        egui::StrokeKind::Inside,
+    );
+    resp
 }
 
 fn clamp_chars(s: &str, max: usize) -> String {
@@ -533,17 +704,18 @@ fn clamp_chars(s: &str, max: usize) -> String {
     }
 }
 
-/// Dunkles, modernes Design.
+/// Aero-Hellthema: Glas-Widgets, Navy-Text, Pointer-Cursor.
 fn apply_theme(ctx: &egui::Context) {
     let mut s = (*ctx.style()).clone();
-    s.visuals.dark_mode = true;
-    s.visuals.panel_fill = BG;
-    s.visuals.window_fill = BG;
-    s.visuals.extreme_bg_color = CARD;
-    s.visuals.override_text_color = Some(TEXT);
-    s.visuals.window_corner_radius = CornerRadius::same(10);
-    s.visuals.menu_corner_radius = CornerRadius::same(10);
+    s.visuals.dark_mode = false;
+    s.visuals.panel_fill = Color32::TRANSPARENT;
+    s.visuals.window_fill = Color32::TRANSPARENT;
+    s.visuals.extreme_bg_color = Color32::from_white_alpha(150);
+    s.visuals.override_text_color = Some(NAVY);
+    s.visuals.window_corner_radius = CornerRadius::same(12);
+    s.visuals.menu_corner_radius = CornerRadius::same(12);
     s.visuals.interact_cursor = Some(CursorIcon::PointingHand);
+    s.visuals.selection.bg_fill = Color32::from_rgba_unmultiplied(0x00, 0x78, 0xd7, 110);
 
     for st in [
         &mut s.visuals.widgets.noninteractive,
@@ -552,14 +724,14 @@ fn apply_theme(ctx: &egui::Context) {
         &mut s.visuals.widgets.active,
         &mut s.visuals.widgets.open,
     ] {
-        st.bg_fill = CARD;
-        st.weak_bg_fill = CARD;
-        st.bg_stroke = Stroke::new(1.0_f32, BORDER);
-        st.fg_stroke = Stroke::new(1.0_f32, TEXT);
+        st.bg_fill = Color32::from_white_alpha(120);
+        st.weak_bg_fill = Color32::from_white_alpha(120);
+        st.bg_stroke = Stroke::new(1.0_f32, Color32::from_white_alpha(200));
+        st.fg_stroke = Stroke::new(1.0_f32, NAVY);
         st.corner_radius = CornerRadius::same(9);
     }
-    s.visuals.widgets.hovered.bg_fill = CARD_HOVER;
-    s.visuals.widgets.active.bg_fill = CARD_HOVER;
+    s.visuals.widgets.hovered.bg_fill = Color32::from_white_alpha(170);
+    s.visuals.widgets.active.bg_fill = Color32::from_white_alpha(200);
 
     s.text_styles.entry(TextStyle::Heading).or_default().size = 26.0;
     s.text_styles.entry(TextStyle::Body).or_default().size = 16.0;
