@@ -7,7 +7,7 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{ACCENT, BG, BLUE, DIM, FG, GREEN, ORANGE, RED, YELLOW};
+use doodle_core::palette::{ACCENT, BG, BLUE, MUTED, FG, GREEN, ORANGE, RED, YELLOW};
 use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
@@ -204,9 +204,9 @@ async fn run_game() -> u32 {
         draw_text(&format!("Punkte: {score}"), 14.0, 32.0, 20.0, FG);
         let btxt = format!("Best: {}", best.max(score));
         let bdim = measure_text(&btxt, None, 16_u16, 1.0);
-        draw_text(&btxt, w - bdim.width - 14.0, 30.0, 16.0, DIM);
+        draw_text(&btxt, w - bdim.width - 14.0, 30.0, 16.0, MUTED);
         if get_time() as f32 - start_time < 3.0 {
-            text_centered("Pfeiltasten oder A/D", w * 0.5, h - 12.0, 15.0, DIM);
+            text_centered("Pfeiltasten oder A/D", w * 0.5, h - 12.0, 15.0, MUTED);
         }
 
         next_frame().await;

@@ -11,7 +11,7 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{self, BG, DIM, FG, GREEN, PANEL, RED};
+use doodle_core::palette::{self, BG, BORDER, MUTED, FG, GREEN, PANEL, RED};
 use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
@@ -174,13 +174,13 @@ async fn run_game() -> u32 {
         // Darstellung
         clear_background(BG);
         text_centered("Doodle Snake", LEFT + BOARD_W * 0.5, 52.0, 34.0, FG);
-        draw_text(&format!("Punkte: {score}"), LEFT, 92.0, 18.0, DIM);
+        draw_text(&format!("Punkte: {score}"), LEFT, 92.0, 18.0, MUTED);
         text_centered(
             &format!("Best: {}", best.max(score)),
             LEFT + BOARD_W * 0.5 + 130.0,
             92.0,
             18.0,
-            DIM,
+            MUTED,
         );
 
         // Spielfeld
@@ -193,7 +193,7 @@ async fn run_game() -> u32 {
             let y = TOP + j as f32 * CELL;
             draw_line(LEFT, y, LEFT + BOARD_W, y, 1.0, alpha(FG, 0.05));
         }
-        draw_rectangle_lines(LEFT, TOP, BOARD_W, BOARD_H, 2.0, FG);
+        draw_rectangle_lines(LEFT, TOP, BOARD_W, BOARD_H, 2.0, BORDER);
 
         // Frucht
         let (fx, fy) = cell_center(food);

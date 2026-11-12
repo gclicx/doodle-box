@@ -3,7 +3,7 @@
 //! Der Launcher sucht neben seiner eigenen Datei (bzw. in `games/`-Ordnern)
 //! nach Programmdateien, die mit `doodle-` beginnen, fragt jede mit dem
 //! Argument `--doodle-meta` kurz nach Name/Beschreibung/Version und listet
-//! sie auf. Ein Klick auf "Spielen" startet das Spiel als eigener Prozess.
+//! sie auf. Ein Klick auf die Karte startet das Spiel als eigener Prozess.
 //!
 //! Neues Spiel hinzufügen:
 //! 1. Neuen Crate im Ordner `games/` anlegen (Crate-Name beginnt mit `doodle-`).
@@ -14,17 +14,29 @@
 
 use doodle_meta::{GameMeta, META_ARG};
 use eframe::egui;
-use egui::{Align, Color32, Key, Layout, RichText, ScrollArea, TextStyle};
+use egui::{
+    pos2, vec2, Align, Align2, Color32, CornerRadius, CursorIcon, FontId, Key, Layout, Rect,
+    RichText, ScrollArea, Sense, Stroke, TextStyle,
+};
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-// ---- Farben (neutral, hell) ----
-const BG: Color32 = Color32::from_rgb(0xf4, 0xf5, 0xf2);
-const CARD: Color32 = Color32::from_rgb(0xff, 0xff, 0xff);
-const ACCENT: Color32 = Color32::from_rgb(0x2f, 0x9e, 0x44);
-const DISABLED: Color32 = Color32::from_rgb(0xb8, 0xbc, 0xc2);
+// ---- Farben (dunkles, modernes Slate-Thema passend zu den Spielen) ----
+const BG: Color32 = Color32::from_rgb(0x1a, 0x1b, 0x22);
+const CARD: Color32 = Color32::from_rgb(0x24, 0x26, 0x33);
+const CARD_HOVER: Color32 = Color32::from_rgb(0x2c, 0x2f, 0x3e);
+const CHIP: Color32 = Color32::from_rgb(0x2c, 0x2f, 0x3e);
+const BORDER: Color32 = Color32::from_rgb(0x32, 0x36, 0x47);
+const TEXT: Color32 = Color32::from_rgb(0xe9, 0xe6, 0xdf);
+const MUTED: Color32 = Color32::from_rgb(0x90, 0x95, 0xa5);
+const ACCENT: Color32 = Color32::from_rgb(0x63, 0xe6, 0xbe);
+/// Weicher Akzentton für Hover-Kanten (Alpha).
+fn accent_soft() -> Color32 {
+    Color32::from_rgba_unmultiplied(0x63, 0xe6, 0xbe, 110)
+}
+const ON_ACCENT: Color32 = Color32::from_rgb(0x0b, 0x14, 0x10);
 
 /// Ein gefundenes Spiel.
 struct GameEntry {
@@ -50,8 +62,8 @@ struct LauncherApp {
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([880.0, 640.0])
-            .with_min_inner_size([560.0, 420.0]),
+            .with_inner_size([920.0, 640.0])
+            .with_min_inner_size([580.0, 440.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -282,119 +294,279 @@ impl eframe::App for LauncherApp {
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Kopf
-            ui.add_space(6.0);
+            // ---------------- Kopfzeile ----------------
             ui.horizontal(|ui| {
-                ui.heading("Doodle Box");
-                ui.label(
-                    RichText::new("kleine Rust-Spiele aus diesem Workspace")
-                        .weak()
-                        .size(14.0),
+                // Logo-Badge
+                let (badge, _) = ui.allocate_exact_size(vec2(46.0, 46.0), Sense::hover());
+                let p = ui.painter();
+                p.rect(
+                    badge,
+                    14.0,
+                    ACCENT,
+                    Stroke::NONE,
+                    egui::StrokeKind::Inside,
                 );
+                p.text(
+                    badge.center(),
+                    Align2::CENTER_CENTER,
+                    "D",
+                    FontId::proportional(24.0),
+                    ON_ACCENT,
+                );
+
+                ui.add_space(4.0);
+                ui.vertical(|ui| {
+                    ui.label(RichText::new("Doodle Box").size(23.0).strong());
+                    ui.label(
+                        RichText::new("Kleine Rust-Spiele · ein Klick zum Starten")
+                            .weak()
+                            .size(13.0),
+                    );
+                });
+
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    // Zähler-Pill
+                    let count = format!(
+                        "{} {}",
+                        self.games.len(),
+                        if self.games.len() == 1 { "Spiel" } else { "Spiele" }
+                    );
+                    // Breite erst per temporärem Painter messen,
+                    // damit der Borrow vor dem allozieren endet.
+                    let (gal, pill_w) = {
+                        let p0 = ui.painter();
+                        let g = p0.layout_no_wrap(count, FontId::proportional(13.0), MUTED);
+                        let w = g.size().x + 26.0;
+                        (g, w)
+                    };
+                    let pill = ui
+                        .allocate_exact_size(vec2(pill_w, 30.0), Sense::hover())
+                        .1
+                        .rect;
+                    let p = ui.painter();
+                    p.rect(
+                        pill,
+                        15.0,
+                        CHIP,
+                        Stroke::new(1.0_f32, BORDER),
+                        egui::StrokeKind::Inside,
+                    );
+                    p.galley(
+                        pos2(pill.left() + 13.0, pill.center().y - gal.size().y / 2.0),
+                        gal,
+                        MUTED,
+                    );
+
+                    ui.add_space(6.0);
+                    if ui
+                        .add(
+                            egui::Button::new(
+                                RichText::new("Aktualisieren").weak().size(14.0),
+                            )
+                            .frame(false)
+                            .min_size(vec2(0.0, 30.0)),
+                        )
+                        .clicked()
+                    {
+                        self.rescan();
+                    }
+                });
             });
-            ui.add_space(2.0);
-            ui.separator();
-            ui.add_space(8.0);
+
+            ui.add_space(14.0);
+
+            // ---------------- Karteileiste ----------------
+            let mut launch_index: Option<usize> = None;
 
             if self.games.is_empty() {
                 ui.vertical_centered(|ui| {
-                    ui.add_space(ui.available_height() * 0.25);
-                    ui.label(RichText::new("Keine Spiele gefunden").size(20.0));
-                    ui.add_space(4.0);
+                    ui.add_space(ui.available_height() * 0.16);
+                    ui.label(RichText::new("Noch keine Spiele gefunden").size(21.0));
+                    ui.add_space(6.0);
                     ui.label(
                         RichText::new(
-                            "Spiele liegen neben der launcher-Programmdatei oder in einem games/-Ordner.\n\
-                             Neues Spiel anlegen: games/<doodle-name>/ mit doodle_meta!(…) in main.rs.",
+                            "Baue die Spiele mit  cargo build  oder lege ein doodle-* Programm\n\
+                             neben die Launcher-Datei bzw. in einen games/-Ordner.",
                         )
                         .weak()
                         .size(14.0),
                     );
                 });
             } else {
-                let mut launch_index: Option<usize> = None;
-
                 ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         for (i, entry) in self.games.iter().enumerate() {
-                            ui.group(|ui| {
-                                ui.set_min_height(78.0);
-                                ui.horizontal(|ui| {
-                                    ui.vertical(|ui| {
-                                        ui.label(RichText::new(&entry.name).size(21.0).strong());
-                                        ui.label(RichText::new(&entry.description).weak());
-                                        ui.label(
-                                            RichText::new(format!(
-                                                "v{} · {}",
-                                                entry.version,
-                                                entry.path.display()
-                                            ))
-                                            .small()
-                                            .weak(),
-                                        );
-                                    });
-                                    ui.with_layout(
-                                        Layout::right_to_left(Align::Center),
-                                        |ui| {
-                                            let button = if entry.has_meta {
-                                                egui::Button::new(
-                                                    RichText::new("Spielen").color(Color32::WHITE),
-                                                )
-                                                .fill(ACCENT)
-                                                .min_size(egui::vec2(110.0, 40.0))
-                                            } else {
-                                                egui::Button::new("Starten")
-                                                    .fill(DISABLED)
-                                                    .min_size(egui::vec2(110.0, 40.0))
-                                            };
-                                            if ui.add(button).clicked() {
-                                                launch_index = Some(i);
-                                            }
-                                        },
-                                    );
-                                });
-                            });
-                            ui.add_space(10.0);
+                            draw_game_card(ui, entry, i, &mut launch_index);
+                            ui.add_space(12.0);
                         }
                     });
-
-                // Klicks erst nach der Liste verarbeiten (Borrowing).
-                if let Some(i) = launch_index {
-                    self.launch(i);
-                }
             }
 
-            // Fußzeile (bottom_up: zuerst Hinzugefügtes liegt unten)
+            if let Some(i) = launch_index {
+                self.launch(i);
+            }
+
+            // ---------------- Fußzeile ----------------
             ui.with_layout(Layout::bottom_up(Align::LEFT), |ui| {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new(&self.status).weak().size(13.0));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.button("Ordner öffnen").clicked() {
+                        if ui
+                            .add(
+                                egui::Button::new(
+                                    RichText::new("Ordner öffnen").weak().size(13.5),
+                                )
+                                .frame(false),
+                            )
+                            .clicked()
+                        {
                             self.open_games_folder();
-                        }
-                        if ui.button("Aktualisieren (F5)").clicked() {
-                            self.rescan();
                         }
                     });
                 });
-                ui.add_space(6.0);
-                ui.separator();
+                ui.add_space(8.0);
+                let (line, _) = ui
+                    .allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
+                ui.painter().rect(
+                    line,
+                    0.0,
+                    BORDER,
+                    Stroke::NONE,
+                    egui::StrokeKind::Outside,
+                );
             });
         });
     }
 }
 
-/// Helliges, neutrales Launcher-Design.
+/// Eine modern gestylte Karte: komplett klickbar, Hover-Effekt,
+/// Versions-Chip, Pfad als Tooltip, Spiel-Button rechtsbündig.
+fn draw_game_card(ui: &mut egui::Ui, entry: &GameEntry, index: usize, launch: &mut Option<usize>) {
+    let (card, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 96.0), Sense::click());
+    let hovered = resp.hovered();
+
+    let p = ui.painter();
+    p.rect(
+        card,
+        14.0,
+        if hovered { CARD_HOVER } else { CARD },
+        Stroke::new(1.2_f32, if hovered { accent_soft() } else { BORDER }),
+        egui::StrokeKind::Inside,
+    );
+
+    let resp = resp
+        .on_hover_cursor(CursorIcon::PointingHand)
+        .on_hover_text(format!("Datei: {}", entry.path.display()));
+
+    // Name
+    p.text(
+        pos2(card.left() + 20.0, card.top() + 16.0),
+        Align2::LEFT_TOP,
+        &entry.name,
+        FontId::proportional(19.0),
+        TEXT,
+    );
+
+    // Versions-Chip
+    let ver = format!("v{}", entry.version);
+    let vgal = p.layout_no_wrap(ver, FontId::proportional(11.0), MUTED);
+    let chip = Rect::from_min_size(
+        pos2(card.left() + 20.0, card.top() + 48.0),
+        vec2(vgal.size().x + 18.0, 22.0),
+    );
+    p.rect(chip, 7.0, CHIP, Stroke::NONE, egui::StrokeKind::Inside);
+    p.galley(
+        pos2(chip.left() + 9.0, chip.center().y - vgal.size().y / 2.0),
+        vgal,
+        MUTED,
+    );
+
+    // Beschreibung (gekürzt, passt in Zeile neben Button)
+    let max_chars = ((card.width() - 340.0) / 7.4).max(24.0) as usize;
+    let desc = clamp_chars(&entry.description, max_chars);
+    p.text(
+        pos2(chip.right() + 14.0, card.top() + 50.0),
+        Align2::LEFT_TOP,
+        desc,
+        FontId::proportional(14.0),
+        MUTED,
+    );
+
+    // Spiel-Button rechtsbündig, vertikal zentriert
+    let bw = 122.0_f32;
+    let bh = 46.0_f32;
+    let btn_rect = egui::Rect::from_min_size(
+        pos2(card.right() - 20.0 - bw, card.center().y - bh / 2.0),
+        vec2(bw, bh),
+    );
+    let button = play_button(entry);
+    if ui.put(btn_rect, button).clicked() {
+        *launch = Some(index);
+    }
+    // Ganze Karte klickbar
+    if resp.clicked() {
+        *launch = Some(index);
+    }
+}
+
+fn play_button(entry: &GameEntry) -> egui::Button<'static> {
+    if entry.has_meta {
+        egui::Button::new(RichText::new("Spielen").color(ON_ACCENT).size(16.0))
+            .fill(ACCENT)
+            .min_size(vec2(122.0, 46.0))
+    } else {
+        egui::Button::new(RichText::new("Starten").color(MUTED).size(15.0))
+            .fill(CARD)
+            .stroke(Stroke::new(1.0_f32, BORDER))
+            .min_size(vec2(122.0, 46.0))
+    }
+}
+
+fn clamp_chars(s: &str, max: usize) -> String {
+    let n = s.chars().count();
+    if n <= max {
+        s.to_string()
+    } else {
+        let c: String = s.chars().take(max.saturating_sub(1)).collect();
+        format!("{c}…")
+    }
+}
+
+/// Dunkles, modernes Design.
 fn apply_theme(ctx: &egui::Context) {
-    let mut style = (*ctx.style()).clone();
-    style.visuals.panel_fill = BG;
-    style.visuals.window_fill = BG;
-    style.visuals.extreme_bg_color = CARD;
-    style.visuals.widgets.noninteractive.bg_fill = CARD;
-    style.visuals.widgets.inactive.bg_fill = CARD;
-    style.visuals.widgets.hovered.bg_fill = BG;
-    style.text_styles.entry(TextStyle::Heading).or_default().size = 28.0;
-    style.text_styles.entry(TextStyle::Body).or_default().size = 16.0;
-    style.text_styles.entry(TextStyle::Button).or_default().size = 17.0;
-    ctx.set_style(style);
+    let mut s = (*ctx.style()).clone();
+    s.visuals.dark_mode = true;
+    s.visuals.panel_fill = BG;
+    s.visuals.window_fill = BG;
+    s.visuals.extreme_bg_color = CARD;
+    s.visuals.override_text_color = Some(TEXT);
+    s.visuals.window_corner_radius = CornerRadius::same(10);
+    s.visuals.menu_corner_radius = CornerRadius::same(10);
+    s.visuals.interact_cursor = Some(CursorIcon::PointingHand);
+
+    for st in [
+        &mut s.visuals.widgets.noninteractive,
+        &mut s.visuals.widgets.inactive,
+        &mut s.visuals.widgets.hovered,
+        &mut s.visuals.widgets.active,
+        &mut s.visuals.widgets.open,
+    ] {
+        st.bg_fill = CARD;
+        st.weak_bg_fill = CARD;
+        st.bg_stroke = Stroke::new(1.0_f32, BORDER);
+        st.fg_stroke = Stroke::new(1.0_f32, TEXT);
+        st.corner_radius = CornerRadius::same(9);
+    }
+    s.visuals.widgets.hovered.bg_fill = CARD_HOVER;
+    s.visuals.widgets.active.bg_fill = CARD_HOVER;
+
+    s.text_styles.entry(TextStyle::Heading).or_default().size = 26.0;
+    s.text_styles.entry(TextStyle::Body).or_default().size = 16.0;
+    s.text_styles.entry(TextStyle::Button).or_default().size = 16.0;
+    s.text_styles.entry(TextStyle::Small).or_default().size = 12.0;
+
+    s.spacing.item_spacing = vec2(10.0, 10.0);
+    s.spacing.button_padding = vec2(14.0, 9.0);
+    ctx.set_style(s);
 }

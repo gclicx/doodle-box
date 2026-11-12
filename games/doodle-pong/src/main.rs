@@ -7,7 +7,7 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{self, ACCENT, BG, DIM, FG, PANEL};
+use doodle_core::palette::{self, ACCENT, BG, MUTED, FG, PANEL};
 use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
@@ -213,7 +213,7 @@ async fn run_game() -> u32 {
         draw_rectangle(0.0, 0.0, w, top, PANEL);
         draw_rectangle(0.0, bottom, w, h - bottom, PANEL);
         draw_text(&format!("Du: {p_score}"), 16.0, 30.0, 20.0, FG);
-        draw_text(&format!("Best: {best}"), 16.0, 50.0, 14.0, DIM);
+        draw_text(&format!("Best: {best}"), 16.0, 50.0, 14.0, MUTED);
         let ctxt = format!("CPU: {c_score}");
         let cdim = measure_text(&ctxt, None, 20_u16, 1.0);
         draw_text(&ctxt, w - cdim.width - 16.0, 30.0, 20.0, FG);

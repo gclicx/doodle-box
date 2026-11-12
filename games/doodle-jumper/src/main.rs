@@ -12,7 +12,7 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{self, BG, BLUE, DIM, FG, GREEN, ORANGE};
+use doodle_core::palette::{self, BG, BLUE, MUTED, FG, GREEN, ORANGE};
 use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
@@ -259,10 +259,10 @@ async fn run_game() -> u32 {
         draw_text(&format!("Punkte: {score}"), 14.0, 34.0, 20.0, FG);
         let btxt = format!("Best: {}", best.max(score));
         let bdim = measure_text(&btxt, None, 20_u16, 1.0);
-        draw_text(&btxt, w - bdim.width - 14.0, 34.0, 20.0, DIM);
+        draw_text(&btxt, w - bdim.width - 14.0, 34.0, 20.0, MUTED);
 
         if score == 0 {
-            text_centered("← → zum Bewegen", w * 0.5, 80.0, 18.0, DIM);
+            text_centered("← → zum Bewegen", w * 0.5, 80.0, 18.0, MUTED);
         }
 
         next_frame().await;

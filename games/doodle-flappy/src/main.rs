@@ -7,7 +7,7 @@ doodle_meta!(
 );
 
 use doodle_core::highscore;
-use doodle_core::palette::{BG, DIM, FG, GREEN, PANEL, YELLOW};
+use doodle_core::palette::{BG, BORDER, MUTED, FG, GREEN, PANEL, YELLOW};
 use doodle_core::{alpha, doodle_meta, game_over_screen, seed_rng, text_centered, title_screen};
 use macroquad::prelude::*;
 
@@ -158,7 +158,7 @@ async fn run_game() -> u32 {
         }
         // Boden
         draw_rectangle(0.0, ground_y, w, h - ground_y, PANEL);
-        draw_line(0.0, ground_y, w, ground_y, 2.0, FG);
+        draw_line(0.0, ground_y, w, ground_y, 2.0, BORDER);
 
         // Vogel
         draw_circle(BIRD_X, bird_y, BIRD_R, YELLOW);
@@ -170,7 +170,7 @@ async fn run_game() -> u32 {
         text_centered(&format!("{score}"), w * 0.5, 64.0, 40.0, FG);
         let btxt = format!("Best: {}", best.max(score));
         let bdim = measure_text(&btxt, None, 16_u16, 1.0);
-        draw_text(&btxt, w - bdim.width - 14.0, 22.0, 16.0, DIM);
+        draw_text(&btxt, w - bdim.width - 14.0, 22.0, 16.0, MUTED);
 
         next_frame().await;
     }
