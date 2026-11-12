@@ -1,0 +1,9 @@
+[package]
+name = "doodle-core"
+version.workspace = true
+edition.workspace = true
+description = "Gemeinsamer Kritzel-Zeichenstil und Bildschirme für Doodle-Spiele"
+
+[dependencies]
+macroquad = { workspace = true }
+doodle-meta = { workspace = true }

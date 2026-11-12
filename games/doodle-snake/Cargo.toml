@@ -1,0 +1,9 @@
+[package]
+name = "doodle-snake"
+version.workspace = true
+edition.workspace = true
+description = "Doodle Snake – die klassische Schlange im Schulheft-Look"
+
+[dependencies]
+macroquad = { workspace = true }
+doodle-core = { workspace = true }

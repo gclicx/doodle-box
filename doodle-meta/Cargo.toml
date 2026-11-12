@@ -1,0 +1,10 @@
+[package]
+name = "doodle-meta"
+version.workspace = true
+edition.workspace = true
+description = "Meta-Handshake zwischen Doodle-Box-Launcher und Spielen"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+ctor = { workspace = true }

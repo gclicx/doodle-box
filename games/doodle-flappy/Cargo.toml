@@ -1,0 +1,9 @@
+[package]
+name = "doodle-flappy"
+version.workspace = true
+edition.workspace = true
+description = "Doodle Flappy – flattere zwischen den Röhren durch"
+
+[dependencies]
+macroquad = { workspace = true }
+doodle-core = { workspace = true }

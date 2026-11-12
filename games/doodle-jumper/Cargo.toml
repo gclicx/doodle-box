@@ -1,0 +1,9 @@
+[package]
+name = "doodle-jumper"
+version.workspace = true
+edition.workspace = true
+description = "Doodle Jumper – immer höher hüpfen auf Kritzel-Plattformen"
+
+[dependencies]
+macroquad = { workspace = true }
+doodle-core = { workspace = true }

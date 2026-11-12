@@ -1,0 +1,9 @@
+[package]
+name = "doodle-pong"
+version.workspace = true
+edition.workspace = true
+description = "Doodle Pong – Pong gegen den Computer, bis 7 Punkte"
+
+[dependencies]
+macroquad = { workspace = true }
+doodle-core = { workspace = true }

@@ -1,0 +1,10 @@
+[package]
+name = "doodle-launcher"
+version.workspace = true
+edition.workspace = true
+description = "Doodle Box – Launcher für kleine Rust-Spiele aus diesem Workspace"
+
+[dependencies]
+eframe = { workspace = true }
+doodle-meta = { workspace = true }
+serde_json = { workspace = true }

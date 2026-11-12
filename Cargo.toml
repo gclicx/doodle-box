@@ -1,0 +1,31 @@
+# Doodle-Box Workspace
+[workspace]
+resolver = "2"
+members = [
+    "doodle-meta",
+    "doodle-core",
+    "launcher",
+    "games/doodle-jumper",
+    "games/doodle-snake",
+    "games/doodle-flappy",
+    "games/doodle-pong",
+    "games/doodle-breakout",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+macroquad = "0.4"
+eframe = "0.31"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ctor = "0.2"
+doodle-meta = { path = "doodle-meta" }
+doodle-core = { path = "doodle-core" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
