@@ -27,6 +27,7 @@ fn conf() -> Conf {
         window_title: "Doodle Pong".to_owned(),
         window_width: 640,
         window_height: 400,
+        window_resizable: false,
         high_dpi: true,
         ..Default::default()
     }

@@ -29,6 +29,7 @@ fn conf() -> Conf {
         window_title: "Doodle Snake".to_owned(),
         window_width: 560,
         window_height: 660,
+        window_resizable: false,
         high_dpi: true,
         ..Default::default()
     }

@@ -25,6 +25,7 @@ fn conf() -> Conf {
         window_title: "Doodle Breakout".to_owned(),
         window_width: 480,
         window_height: 640,
+        window_resizable: false,
         high_dpi: true,
         ..Default::default()
     }

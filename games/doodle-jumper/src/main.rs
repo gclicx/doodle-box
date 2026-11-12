@@ -21,12 +21,18 @@ const PLAYER_R: f32 = 14.0;
 const GRAVITY: f32 = 1500.0;
 const JUMP_V: f32 = -690.0;
 const MOVE_SPEED: f32 = 360.0;
+// Erreichbarkeitsgarantien: Sprunghöhe = JUMP_V^2/(2*GRAVITY) ~ 159 px,
+// max. horizontale Flugweite ~ 331 px.
+const MAX_GAP: f32 = 96.0;
+const MAX_GAP_AFTER_BREAKABLE: f32 = 84.0;
+const MAX_X_DIST: f32 = 190.0;
 
 fn conf() -> Conf {
     Conf {
         window_title: "Doodle Jumper".to_owned(),
         window_width: 480,
         window_height: 720,
+        window_resizable: false,
         high_dpi: true,
         ..Default::default()
     }
@@ -189,23 +195,47 @@ async fn run_game() -> u32 {
             }
         }
 
-        // Nach oben weiter Plattformen erzeugen
+        // Nach oben weiter Plattformen erzeugen – mit Erreichbarkeitsgarantien:
+        // - vertikale Lücken bleiben unter der Sprunghöhe
+        // - auf eine zerbrechliche Plattform folgt immer eine sichere (normal,
+        //   kleinere Lücke), damit keine unlösbaren Sequenzen entstehen
+        // - horizontale Distanz benachbarter Plattformen ist begrenzt
+        let mut prev_x = plats.last().map(|p| p.x).unwrap_or(w * 0.5);
         while next_y > cam_y - 60.0 {
+            let after_breakable = plats
+                .last()
+                .map(|p| p.kind == Kind::Breakable)
+                .unwrap_or(false);
             let roll = rand::gen_range(0.0_f32, 1.0);
-            let (kind, w_p, speed) = if roll < 0.62 {
-                (Kind::Normal, rand::gen_range(74.0, 100.0), 0.0)
+            let kind = if after_breakable || roll < 0.62 {
+                Kind::Normal
             } else if roll < 0.85 {
-                (
-                    Kind::Moving,
-                    80.0,
-                    rand::gen_range(60.0, 150.0) * if rand::gen_range(0.0_f32, 1.0) < 0.5 { -1.0 } else { 1.0 },
-                )
+                Kind::Moving
             } else {
-                (Kind::Breakable, rand::gen_range(62.0, 80.0), 0.0)
+                Kind::Breakable
             };
-            let x = rand::gen_range(w_p * 0.5 + 10.0, w - w_p * 0.5 - 10.0);
+            let (w_p, speed) = match kind {
+                Kind::Normal => (rand::gen_range(74.0, 100.0), 0.0),
+                Kind::Moving => (
+                    80.0,
+                    rand::gen_range(55.0, 130.0)
+                        * if rand::gen_range(0.0_f32, 1.0) < 0.5 { -1.0 } else { 1.0 },
+                ),
+                Kind::Breakable => (rand::gen_range(62.0, 80.0), 0.0),
+            };
+            let gap = if after_breakable {
+                rand::gen_range(58.0, MAX_GAP_AFTER_BREAKABLE)
+            } else {
+                rand::gen_range(58.0, MAX_GAP)
+            };
+            // Horizontale Distanz zur vorherigen Plattform begrenzen;
+            // das Clamping verkürzt nur, verlängert nie.
+            let minx = w_p * 0.5 + 10.0;
+            let maxx = w - w_p * 0.5 - 10.0;
+            let x = rand::gen_range(prev_x - MAX_X_DIST, prev_x + MAX_X_DIST).clamp(minx, maxx);
             plats.push(Platform { x, y: next_y, w: w_p, kind, vx: speed, used: false });
-            next_y -= rand::gen_range(64.0, 110.0);
+            prev_x = x;
+            next_y -= gap;
         }
 
         // Sichtbare Region aufräumen
